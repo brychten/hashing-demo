@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caché de consultas SQL — Hashing | Algoritmos y Estructuras de Datos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Sora:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1e2333;
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.16);
+    --text: #e8eaf0;
+    --text-muted: #7a8099;
+    --text-dim: #4a5068;
+    --accent-blue: #4f8ef7;
+    --accent-blue-dim: rgba(79,142,247,0.12);
+    --accent-coral: #f76b4f;
+    --accent-coral-dim: rgba(247,107,79,0.12);
+    --accent-green: #2dd4a0;
+    --accent-green-dim: rgba(45,212,160,0.12);
+    --accent-amber: #fbbf24;
+    --accent-amber-dim: rgba(251,191,36,0.12);
+    --accent-purple: #a78bfa;
+    --accent-purple-dim: rgba(167,139,250,0.12);
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-badge {
+    background: var(--accent-blue-dim);
+    border: 1px solid rgba(79,142,247,0.25);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    letter-spacing: 0.05em;
+  }
+  .header-title { font-size: 14px; font-weight: 500; }
+  .header-sub { font-size: 12px; color: var(--text-muted); }
+  .course-badge {
+    font-size: 11px;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 4px 12px;
+  }
+
+  .content { max-width: 920px; margin: 0 auto; padding: 2rem 2rem; }
+
+  .panel-tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    border-radius: 99px;
+    padding: 4px 12px;
+    margin-bottom: 12px;
+    background: var(--accent-blue-dim);
+    color: var(--accent-blue);
+    border: 1px solid rgba(79,142,247,0.2);
+  }
+  .panel-title {
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: 8px;
+  }
+  .panel-desc {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    max-width: 700px;
+    margin-bottom: 1.5rem;
+  }
+
+  .code-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .code-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.4rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: #c9d1e9;
+    overflow-x: auto;
+    white-space: pre;
+    margin-bottom: 1.5rem;
+  }
+  .kw  { color: #a78bfa; }
+  .cm  { color: #4a5068; }
+  .str { color: #2dd4a0; }
+  .num { color: #fbbf24; }
+  .fn  { color: #4f8ef7; }
+
+  /* SIM BOX */
+  .sim-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+  }
+  .sim-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sim-title::before {
+    content: '';
+    display: block;
+    width: 3px; height: 14px;
+    border-radius: 2px;
+    background: var(--accent-blue);
+  }
+
+  /* CONTROLS */
+  .controls-top {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .controls-policy {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .policy-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .policy-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: 'Sora', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .policy-btn:hover { background: var(--surface); color: var(--text); }
+  .policy-btn.active-rehash {
+    background: var(--accent-purple-dim);
+    border-color: rgba(167,139,250,0.35);
+    color: var(--accent-purple);
+  }
+  .policy-btn.active-evict {
+    background: var(--accent-amber-dim);
+    border-color: rgba(251,191,36,0.35);
+    color: var(--accent-amber);
+  }
+  .policy-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-left: 4px;
+  }
+
+  input[type="text"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus { border-color: var(--accent-blue); }
+  input[type="text"]::placeholder { color: var(--text-dim); }
+  select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+  }
+  .btn {
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--border-hover); background: rgba(255,255,255,0.05); }
+  .btn-primary { background: var(--accent-blue-dim); border-color: rgba(79,142,247,0.3); color: var(--accent-blue); }
+  .btn-primary:hover { background: rgba(79,142,247,0.2); }
+  .btn-search { background: var(--accent-green-dim); border-color: rgba(45,212,160,0.3); color: var(--accent-green); }
+  .btn-search:hover { background: rgba(45,212,160,0.2); }
+
+  /* HASH FLOW */
+  .hash-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+  .flow-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+  }
+  .flow-md5 { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+  .flow-arrow { color: var(--text-dim); font-size: 14px; }
+  .flow-result { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent-blue); }
+  .flow-probe { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-coral); background: var(--accent-coral-dim); border: 1px solid rgba(247,107,79,0.2); border-radius: 6px; padding: 3px 8px; }
+  .flow-event { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 6px; }
+  .flow-rehash { background: var(--accent-purple-dim); color: var(--accent-purple); border: 1px solid rgba(167,139,250,0.25); }
+  .flow-evict  { background: var(--accent-amber-dim);  color: var(--accent-amber);  border: 1px solid rgba(251,191,36,0.25); }
+
+  /* SEARCH/STATUS RESULT */
+  .status-msg {
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    display: none;
+  }
+  .status-msg.found    { background: var(--accent-green-dim);  border: 1px solid rgba(45,212,160,0.25);  color: var(--accent-green);  }
+  .status-msg.not-found{ background: var(--accent-coral-dim);  border: 1px solid rgba(247,107,79,0.25);  color: var(--accent-coral);  }
+  .status-msg.info     { background: var(--accent-blue-dim);   border: 1px solid rgba(79,142,247,0.25);  color: var(--accent-blue);   }
+  .status-msg.warn     { background: var(--accent-amber-dim);  border: 1px solid rgba(251,191,36,0.25);  color: var(--accent-amber);  }
+  .status-msg.rehash   { background: var(--accent-purple-dim); border: 1px solid rgba(167,139,250,0.25); color: var(--accent-purple); }
+
+  /* BUCKET GRID */
+  .bucket-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  /* TOOLTIP */
+  .bucket {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 9px;
+    min-height: 54px;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    cursor: default;
+  }
+  .bucket:hover .tooltip { display: block; }
+  .tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0d1120;
+    border: 1px solid rgba(79,142,247,0.3);
+    border-radius: 7px;
+    padding: 8px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+    max-width: 320px;
+    white-space: normal;
+    word-break: break-all;
+    z-index: 50;
+    line-height: 1.5;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(79,142,247,0.3);
+  }
+  .tooltip-idx { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
+  .tooltip-key { color: var(--accent-blue); }
+  .tooltip-empty { color: var(--text-dim); font-style: italic; }
+
+  /* bucket states */
+  .bucket.empty    { opacity: 0.45; }
+  .bucket.occupied { border-color: rgba(79,142,247,0.3); }
+  .bucket.resolved { border-color: rgba(247,107,79,0.55); background: rgba(247,107,79,0.07); }
+  .bucket.collided { border-color: rgba(247,107,79,0.4);  background: rgba(247,107,79,0.04); }
+  .bucket.just-inserted  { border-color: rgba(79,142,247,0.6); background: rgba(79,142,247,0.09); }
+  .bucket.search-hit     { border-color: rgba(45,212,160,0.7);  background: rgba(45,212,160,0.1); }
+  .bucket.search-probe   { border-color: rgba(251,191,36,0.5);  background: rgba(251,191,36,0.06); }
+  .bucket.evicted        { border-color: rgba(251,191,36,0.6);  background: rgba(251,191,36,0.08); }
+
+  .bucket-idx { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; margin-bottom: 3px; }
+  .bucket-key { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent-blue); word-break: break-all; line-height: 1.35; }
+  .bucket.resolved .bucket-key  { color: var(--accent-coral); }
+  .bucket.collided .bucket-key  { color: var(--accent-coral); }
+  .bucket.search-hit .bucket-key{ color: var(--accent-green); }
+  .bucket.search-probe .bucket-key { color: var(--accent-amber); }
+  .bucket.evicted .bucket-key   { color: var(--accent-amber); }
+
+  /* STATS */
+  .stat-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 1.25rem; }
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    min-width: 110px;
+  }
+  .stat-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .stat-val   { font-size: 22px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+  .stat-val.col-warn  { color: var(--accent-coral); }
+  .stat-val.load-warn { color: var(--accent-amber); }
+
+  /* LEGEND */
+  .legend {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    margin-top: 1rem; padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+  .legend-dot  { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .ld-blue   { background: rgba(79,142,247,0.45);  border: 1px solid rgba(79,142,247,0.6); }
+  .ld-coral  { background: rgba(247,107,79,0.45);  border: 1px solid rgba(247,107,79,0.7); }
+  .ld-green  { background: rgba(45,212,160,0.45);  border: 1px solid rgba(45,212,160,0.7); }
+  .ld-amber  { background: rgba(251,191,36,0.45);  border: 1px solid rgba(251,191,36,0.5); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <span class="logo-badge">H{x}</span>
+    <div>
+      <div class="header-title">Caché de consultas SQL — Hashing</div>
+      <div class="header-sub">Algoritmos y Estructuras de Datos · Open Addressing (+1 circular)</div>
+    </div>
+  </div>
+  <span class="course-badge">Ingeniería en Informática · UCU</span>
+</header>
+
+<div class="content">
+  <div class="panel-tag">BD / Backend</div>
+  <h1 class="panel-title">Caché de consultas SQL<br>con tabla hash</h1>
+  <p class="panel-desc">Tabla hash con <strong>open addressing</strong> y sondeo lineal (+1 circular). Cuando el slot calculado por MD5 está ocupado, se avanza circularmente hasta encontrar un slot libre. La búsqueda sigue el mismo recorrido.</p>
+
+  <div class="code-label">Inserción y búsqueda con sondeo lineal</div>
+  <div class="code-block"><span class="kw">def</span> <span class="fn">insert</span>(table, query, size):
+    idx = int(md5(query), <span class="num">16</span>) % size        <span class="cm"># posición inicial</span>
+    <span class="kw">for</span> i <span class="kw">in</span> range(size):
+        slot = (idx + i) % size             <span class="cm"># sondeo +1 circular</span>
+        <span class="kw">if</span> table[slot] <span class="kw">is None</span>:
+            table[slot] = query             <span class="cm"># slot libre → insertar</span>
+            <span class="kw">return</span> slot
+    <span class="kw">raise</span> Exception(<span class="str">"Tabla llena"</span>)
+
+<span class="kw">def</span> <span class="fn">search</span>(table, query, size):
+    idx = int(md5(query), <span class="num">16</span>) % size
+    <span class="kw">for</span> i <span class="kw">in</span> range(size):
+        slot = (idx + i) % size
+        <span class="kw">if</span> table[slot] <span class="kw">is None</span>: <span class="kw">return</span> <span class="num">-1</span>  <span class="cm"># slot vacío → no está</span>
+        <span class="kw">if</span> table[slot] == query: <span class="kw">return</span> slot  <span class="cm"># encontrado</span></div>
+
+  <div class="sim-box">
+    <div class="sim-title">Simulador de caché</div>
+
+    <!-- Controles principales -->
+    <div class="controls-top">
+      <input type="text" id="query-input" placeholder="Escribí una query SQL..." value="SELECT * FROM users" style="flex:1; min-width:200px;">
+      <button class="btn btn-primary" onclick="addQuery()">Insertar en caché</button>
+      <button class="btn btn-search" onclick="searchQuery()">Buscar en caché</button>
+      <select id="table-size" onchange="resetCache()">
+        <option value="4">Tamaño 4</option>
+        <option value="8" selected>Tamaño 8</option>
+        <option value="16">Tamaño 16</option>
+      </select>
+      <button class="btn" onclick="resetCache()">Limpiar</button>
+    </div>
+
+    <!-- Política cuando la tabla se llena -->
+    <div class="controls-policy">
+      <span class="policy-label">Cuando la tabla se llena:</span>
+      <button class="policy-btn active-rehash" id="btn-rehash" onclick="setPolicy('rehash')">Rehashing (×2)</button>
+      <button class="policy-btn" id="btn-evict"  onclick="setPolicy('evict')">Eviction (LRU-simple)</button>
+      <span class="policy-desc" id="policy-desc">duplica el tamaño y reubica todos los registros</span>
+    </div>
+
+    <!-- Hash flow -->
+    <div class="hash-flow" id="hash-flow" style="display:none;">
+      <span class="flow-val" id="hf-query"></span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-md5" id="hf-md5"></span>
+      <span class="flow-arrow">→</span>
+      <span style="font-size:12px; color:var(--text-dim);">% size</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-result" id="hf-initial"></span>
+      <span id="hf-probes"></span>
+      <span id="hf-event"></span>
+    </div>
+
+    <!-- Status -->
+    <div class="status-msg" id="status-msg"></div>
+
+    <!-- Buckets -->
+    <div class="bucket-grid" id="bucket-grid"></div>
+
+    <!-- Stats -->
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-label">Tamaño</div><div class="stat-val" id="stat-size">8</div></div>
+      <div class="stat-card"><div class="stat-label">Entradas</div><div class="stat-val" id="stat-entries">0</div></div>
+      <div class="stat-card"><div class="stat-label">Colisiones</div><div class="stat-val" id="stat-collisions">0</div></div>
+      <div class="stat-card"><div class="stat-label">Factor de carga</div><div class="stat-val" id="stat-load">0.00</div></div>
+      <div class="stat-card"><div class="stat-label">Rehashes</div><div class="stat-val" id="stat-rehashes">0</div></div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot ld-blue"></div> Slot ocupado (directo)</div>
+      <div class="legend-item"><div class="legend-dot ld-coral"></div> Colisión resuelta por sondeo</div>
+      <div class="legend-item"><div class="legend-dot ld-green"></div> Encontrado en búsqueda</div>
+      <div class="legend-item"><div class="legend-dot ld-amber"></div> Slot recorrido / eviccionado</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Estado ────────────────────────────────────────────────────────────────────
+let table       = [];   // string | null por slot
+let isCollided  = [];   // bool: fue insertado con sondeo
+let tableSize   = 8;
+let entries     = 0;
+let collisions  = 0;
+let rehashes    = 0;
+let policy      = 'rehash';  // 'rehash' | 'evict'
+let insertOrder = [];         // para eviction LRU-simple: orden de inserción (slot)
+
+// ── MD5 → índice ──────────────────────────────────────────────────────────────
+function md5index(query, size) {
+  const digest = SparkMD5.hash(query);
+  return parseInt(digest.substring(0, 8), 16) % size;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function initCache() {
+  tableSize   = parseInt(document.getElementById('table-size').value);
+  table       = new Array(tableSize).fill(null);
+  isCollided  = new Array(tableSize).fill(false);
+  entries     = 0;
+  collisions  = 0;
+  rehashes    = 0;
+  insertOrder = [];
+  renderBuckets();
+  updateStats();
+  hide('hash-flow');
+  hideStatus();
+}
+
+// ── Política ──────────────────────────────────────────────────────────────────
+function setPolicy(p) {
+  policy = p;
+  document.getElementById('btn-rehash').className = 'policy-btn' + (p === 'rehash' ? ' active-rehash' : '');
+  document.getElementById('btn-evict').className  = 'policy-btn' + (p === 'evict'  ? ' active-evict'  : '');
+  document.getElementById('policy-desc').textContent =
+    p === 'rehash'
+      ? 'duplica el tamaño y reubica todos los registros'
+      : 'descarta el registro más antiguo del caché (LRU-simple)';
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderBuckets(highlight) {
+  // highlight: { slots: number[], mode: 'insert'|'search-found'|'search-miss'|'evict' }
+  const grid = document.getElementById('bucket-grid');
+  grid.innerHTML = '';
+
+  for (let i = 0; i < tableSize; i++) {
+    const div = document.createElement('div');
+    let cls = 'bucket';
+    let isHighlighted = highlight && highlight.slots.includes(i);
+
+    if (isHighlighted) {
+      const pos  = highlight.slots.indexOf(i);
+      const last = pos === highlight.slots.length - 1;
+      if (highlight.mode === 'insert') {
+        cls += last ? ' just-inserted' : ' collided';
+      } else if (highlight.mode === 'search-found') {
+        cls += last ? ' search-hit' : ' search-probe';
+      } else if (highlight.mode === 'search-miss') {
+        cls += ' search-probe';
+      } else if (highlight.mode === 'evict') {
+        cls += ' evicted';
+      }
+    } else if (table[i] !== null) {
+      cls += isCollided[i] ? ' resolved' : ' occupied';
+    } else {
+      cls += ' empty';
+    }
+
+    const fullKey = table[i] || '';
+    const short   = fullKey.length > 14 ? fullKey.substring(0, 12) + '…' : fullKey;
+
+    div.className = cls;
+    div.innerHTML = `
+      <div class="bucket-idx">[${i}]</div>
+      ${fullKey ? `<div class="bucket-key">${short}</div>` : ''}
+      <div class="tooltip">
+        <div class="tooltip-idx">bucket[${i}]</div>
+        ${fullKey
+          ? `<div class="tooltip-key">${fullKey}</div>`
+          : `<div class="tooltip-empty">vacío</div>`}
+      </div>`;
+    grid.appendChild(div);
+  }
+}
+
+function updateStats() {
+  document.getElementById('stat-size').textContent      = tableSize;
+  document.getElementById('stat-entries').textContent   = entries;
+  document.getElementById('stat-rehashes').textContent  = rehashes;
+  const colEl  = document.getElementById('stat-collisions');
+  colEl.textContent  = collisions;
+  colEl.className    = 'stat-val' + (collisions > 0 ? ' col-warn' : '');
+  const load = (entries / tableSize).toFixed(2);
+  const loadEl = document.getElementById('stat-load');
+  loadEl.textContent = load;
+  loadEl.className   = 'stat-val' + (parseFloat(load) >= 0.75 ? ' load-warn' : '');
+}
+
+// ── Helpers UI ────────────────────────────────────────────────────────────────
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function show(id, cls) {
+  const el = document.getElementById(id);
+  el.style.display = 'flex';
+  if (cls) el.className = el.className.replace(/\b(found|not-found|info|warn|rehash)\b/g, '') + ' ' + cls;
+}
+function showStatus(text, cls) {
+  const el = document.getElementById('status-msg');
+  el.className    = 'status-msg ' + cls;
+  el.textContent  = text;
+  el.style.display = 'block';
+}
+function hideStatus() { document.getElementById('status-msg').style.display = 'none'; }
+
+function showFlow(q, initialIdx, probeSlots, finalSlot, hadCollision, extraHtml) {
+  const digest = SparkMD5.hash(q);
+  const short  = q.length > 20 ? q.substring(0, 18) + '…' : q;
+  show('hash-flow');
+  document.getElementById('hf-query').textContent   = short;
+  document.getElementById('hf-md5').textContent     = digest.substring(0, 16) + '…';
+  document.getElementById('hf-initial').textContent = `bucket[${initialIdx}]`;
+
+  const probesEl = document.getElementById('hf-probes');
+  if (hadCollision && probeSlots.length > 1) {
+    const skipped = probeSlots.slice(0, -1).map(s => `[${s}]`).join('→');
+    probesEl.innerHTML = `<span class="flow-arrow">→</span><span class="flow-probe">colisión: ${skipped} ocupados</span><span class="flow-arrow">→</span>`;
+  } else {
+    probesEl.innerHTML = finalSlot >= 0 ? '<span class="flow-arrow">→</span>' : '';
+  }
+
+  document.getElementById('hf-event').innerHTML = extraHtml || (finalSlot >= 0 ? `<span class="flow-result">bucket[${finalSlot}]</span>` : '<span class="flow-result">no encontrado</span>');
+}
+
+// ── Búsqueda con sondeo (devuelve slot o -1, y los slots recorridos) ──────────
+function probe(query) {
+  const startIdx  = md5index(query, tableSize);
+  const probeSlots = [];
+  for (let i = 0; i < tableSize; i++) {
+    const slot = (startIdx + i) % tableSize;
+    if (table[slot] === null) break;
+    probeSlots.push(slot);
+    if (table[slot] === query) return { found: slot, probeSlots };
+  }
+  return { found: -1, probeSlots };
+}
+
+// ── Rehashing ─────────────────────────────────────────────────────────────────
+function doRehash() {
+  const oldTable = table.slice();
+  const newSize  = tableSize * 2;
+  table      = new Array(newSize).fill(null);
+  isCollided = new Array(newSize).fill(false);
+  insertOrder = [];
+  tableSize  = newSize;
+  entries    = 0;
+  rehashes++;
+
+  // reubica todo
+  for (const key of oldTable) {
+    if (key === null) continue;
+    const startIdx = md5index(key, tableSize);
+    for (let i = 0; i < tableSize; i++) {
+      const slot = (startIdx + i) % tableSize;
+      if (table[slot] === null) {
+        table[slot]      = key;
+        isCollided[slot] = i > 0;
+        insertOrder.push(slot);
+        entries++;
+        break;
+      }
+    }
+  }
+  document.getElementById('table-size').value = tableSize <= 16 ? tableSize : tableSize; // sync visual only
+}
+
+// ── Eviction (saca el más antiguo) ───────────────────────────────────────────
+function doEvict() {
+  // insertOrder tiene los slots en orden de inserción; el primero es el más antiguo
+  if (insertOrder.length === 0) return -1;
+  const victimSlot = insertOrder.shift();
+  const victimKey  = table[victimSlot];
+  table[victimSlot]      = null;
+  isCollided[victimSlot] = false;
+  entries--;
+  return { slot: victimSlot, key: victimKey };
+}
+
+// ── Insertar ──────────────────────────────────────────────────────────────────
+function addQuery() {
+  const q = document.getElementById('query-input').value.trim();
+  if (!q) return;
+
+  // ¿Ya existe?
+  const { found, probeSlots: ps } = probe(q);
+  if (found >= 0) {
+    showFlow(q, md5index(q, tableSize), ps, found, ps.length > 1, `<span class="flow-result">bucket[${found}] (duplicado)</span>`);
+    renderBuckets({ slots: [found], mode: 'search-found' });
+    showStatus(`⚠ Duplicado: ya está en bucket[${found}]`, 'info');
+    updateStats();
+    return;
+  }
+
+  // ¿Tabla llena?
+  if (entries >= tableSize) {
+    if (policy === 'rehash') {
+      const oldSize = tableSize;
+      doRehash();
+      showStatus(`↑ Rehashing: tabla ${oldSize} → ${tableSize} slots. Todos los registros reubicados.`, 'rehash');
+      renderBuckets();
+      updateStats();
+      // ahora insertar normalmente después del rehash
+    } else {
+      // eviction
+      const victim = doEvict();
+      showStatus(`⚡ Eviction: se descartó bucket[${victim.slot}] → "${victim.key.length > 40 ? victim.key.substring(0,38)+'…' : victim.key}"`, 'warn');
+      renderBuckets({ slots: [victim.slot], mode: 'evict' });
+      updateStats();
+    }
+  }
+
+  // Insertar con sondeo
+  const startIdx   = md5index(q, tableSize);
+  let probeSlots   = [];
+  let hadCollision = false;
+
+  for (let i = 0; i < tableSize; i++) {
+    const slot = (startIdx + i) % tableSize;
+    if (i > 0) hadCollision = true;
+    if (table[slot] === null) {
+      table[slot]      = q;
+      isCollided[slot] = hadCollision;
+      insertOrder.push(slot);
+      probeSlots.push(slot);
+      if (hadCollision) collisions++;
+      entries++;
+
+      showFlow(q, startIdx, probeSlots, slot, hadCollision, null);
+      renderBuckets({ slots: probeSlots, mode: 'insert' });
+      if (!document.getElementById('status-msg').classList.contains('rehash') &&
+          !document.getElementById('status-msg').classList.contains('warn')) {
+        hideStatus();
+      }
+      break;
+    } else {
+      probeSlots.push(slot);
+    }
+  }
+
+  updateStats();
+}
+
+// ── Buscar ────────────────────────────────────────────────────────────────────
+function searchQuery() {
+  const q = document.getElementById('query-input').value.trim();
+  if (!q) return;
+
+  const startIdx           = md5index(q, tableSize);
+  const { found, probeSlots } = probe(q);
+  const hadProbing         = probeSlots.length > 1;
+
+  showFlow(q, startIdx, probeSlots, found, hadProbing && found >= 0, null);
+
+  if (found >= 0) {
+    renderBuckets({ slots: probeSlots, mode: 'search-found' });
+    showStatus(`✓ Encontrado en bucket[${found}]${probeSlots.length > 1 ? ` (${probeSlots.length} sondeos)` : ''}`, 'found');
+  } else {
+    renderBuckets({ slots: probeSlots, mode: 'search-miss' });
+    const short = q.length > 45 ? q.substring(0, 43) + '…' : q;
+    showStatus(`✗ "${short}" no está en el caché`, 'not-found');
+  }
+  updateStats();
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+function resetCache() { initCache(); }
+
+document.getElementById('query-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addQuery();
+});
+
+initCache();
+</script>
+</body>
+</html>
